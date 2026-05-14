@@ -7,6 +7,9 @@ type CliOptions = {
   contentRoot?: string;
   move?: boolean;
   dryRun?: boolean;
+  optimize?: boolean;
+  maxDimension?: number;
+  quality?: number;
   help?: boolean;
 };
 
@@ -28,6 +31,14 @@ function readOptions(argv: string[]): CliOptions {
       index += 1;
     } else if (arg === "--move") {
       options.move = true;
+    } else if (arg === "--optimize") {
+      options.optimize = true;
+    } else if (arg === "--max-dimension") {
+      options.maxDimension = Number(next);
+      index += 1;
+    } else if (arg === "--quality") {
+      options.quality = Number(next);
+      index += 1;
     } else if (arg === "--dry-run") {
       options.dryRun = true;
     } else if (arg === "--help" || arg === "-h") {
@@ -44,12 +55,15 @@ function printHelp() {
   console.log(`Sort travel photos into day folders.
 
 Usage:
-  npm run sort-photos -- --input <folder> --trip <trip-slug> [--dry-run] [--move]
+  npm run sort-photos -- --input <folder> --trip <trip-slug> [--dry-run] [--move] [--optimize]
 
 Options:
   --input <folder>       Folder containing photos to sort
   --trip <trip-slug>     Trip folder under src/content/trips
   --content-root <path>  Override the trips content root
+  --optimize             Write optimized .webp files instead of copying originals
+  --max-dimension <px>   Longest optimized image edge, default 1600
+  --quality <1-100>      WebP quality for optimized images, default 76
   --dry-run              Print planned operations without copying or moving
   --move                 Move files instead of copying them
 `);
@@ -60,7 +74,11 @@ function printResult(result: Awaited<ReturnType<typeof sortPhotos>>, dryRun: boo
   console.log(`${verb} ${result.operations.length} photo operation(s).`);
 
   for (const operation of result.operations) {
-    const action = dryRun ? operation.action.toUpperCase() : `${operation.action.toUpperCase()}ED`;
+    const action = dryRun
+      ? operation.action.toUpperCase()
+      : operation.action === "optimize"
+        ? "OPTIMIZED"
+        : `${operation.action.toUpperCase()}ED`;
     console.log(`${action}: ${operation.source} -> ${operation.destination}`);
   }
 
@@ -85,12 +103,33 @@ async function main() {
     throw new Error("--input and --trip are required");
   }
 
+  if (options.move && options.optimize) {
+    throw new Error("--move cannot be used with --optimize because optimization never deletes originals");
+  }
+
+  if (
+    options.maxDimension !== undefined &&
+    (!Number.isInteger(options.maxDimension) || options.maxDimension < 1)
+  ) {
+    throw new Error("--max-dimension must be a positive integer");
+  }
+
+  if (
+    options.quality !== undefined &&
+    (!Number.isInteger(options.quality) || options.quality < 1 || options.quality > 100)
+  ) {
+    throw new Error("--quality must be an integer from 1 to 100");
+  }
+
   const result = await sortPhotos({
     input: path.resolve(options.input),
     trip: options.trip,
     contentRoot: options.contentRoot,
     move: options.move,
     dryRun: options.dryRun,
+    optimize: options.optimize,
+    maxDimension: options.maxDimension,
+    quality: options.quality,
   });
 
   printResult(result, Boolean(options.dryRun));

@@ -1,6 +1,10 @@
 import { copyFile, mkdir, readdir, rename, stat } from "node:fs/promises";
 import path from "node:path";
 import exifr from "exifr";
+import sharp from "sharp";
+
+const DEFAULT_OPTIMIZED_MAX_DIMENSION = 1600;
+const DEFAULT_OPTIMIZED_QUALITY = 76;
 
 export const SUPPORTED_IMAGE_EXTENSIONS = new Set([
   ".jpg",
@@ -16,13 +20,16 @@ export type SortPhotosOptions = {
   contentRoot?: string;
   move?: boolean;
   dryRun?: boolean;
+  optimize?: boolean;
+  maxDimension?: number;
+  quality?: number;
 };
 
 export type PlannedOperation = {
   source: string;
   destination: string;
   day: string | "unsorted";
-  action: "copy" | "move";
+  action: "copy" | "move" | "optimize";
 };
 
 export type SortPhotosResult = {
@@ -54,6 +61,10 @@ export function getDestinationDirectory(contentRoot: string, trip: string, day: 
   }
 
   return path.join(contentRoot, trip, "days", day, "photos");
+}
+
+export function getOptimizedFilename(filename: string) {
+  return `${path.parse(filename).name}.webp`;
 }
 
 export function parseExifDate(value: Date | string | undefined) {
@@ -147,18 +158,39 @@ export async function planPhotoSort(options: SortPhotosOptions): Promise<SortPho
       options.trip,
       takenDate ? day : null,
     );
-    const destination = await resolveAvailablePath(destinationDirectory, path.basename(source), reserved);
+    const filename = options.optimize
+      ? getOptimizedFilename(path.basename(source))
+      : path.basename(source);
+    const destination = await resolveAvailablePath(destinationDirectory, filename, reserved);
 
     operations.push({
       source,
       destination,
       day,
-      action: options.move ? "move" : "copy",
+      action: options.optimize ? "optimize" : options.move ? "move" : "copy",
     });
     counts.set(day, (counts.get(day) ?? 0) + 1);
   }
 
   return { operations, skipped, counts };
+}
+
+export async function optimizePhoto(
+  source: string,
+  destination: string,
+  maxDimension = DEFAULT_OPTIMIZED_MAX_DIMENSION,
+  quality = DEFAULT_OPTIMIZED_QUALITY,
+) {
+  await sharp(source)
+    .rotate()
+    .resize({
+      width: maxDimension,
+      height: maxDimension,
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .webp({ quality })
+    .toFile(destination);
 }
 
 export async function sortPhotos(options: SortPhotosOptions) {
@@ -167,7 +199,14 @@ export async function sortPhotos(options: SortPhotosOptions) {
   if (!options.dryRun) {
     for (const operation of result.operations) {
       await mkdir(path.dirname(operation.destination), { recursive: true });
-      if (operation.action === "move") {
+      if (operation.action === "optimize") {
+        await optimizePhoto(
+          operation.source,
+          operation.destination,
+          options.maxDimension,
+          options.quality,
+        );
+      } else if (operation.action === "move") {
         await rename(operation.source, operation.destination);
       } else {
         await copyFile(operation.source, operation.destination);

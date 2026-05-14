@@ -1,8 +1,42 @@
 ---
+import { getImage } from "astro:assets";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { getTrips } from "@/lib/trips";
 
 const trips = getTrips();
+const tripsWithCovers = await Promise.all(
+  trips.map(async (trip) => {
+    if (!trip.cover) {
+      return { ...trip, coverImage: null };
+    }
+
+    const coverWidths = [360, 540, 720, 960].filter((width) => width <= trip.cover!.src.width);
+    const coverImages = await Promise.all(
+      coverWidths.map((width) =>
+        getImage({
+          src: trip.cover!.src,
+          width,
+          format: "webp",
+          quality: 76,
+        }),
+      ),
+    );
+    const fallback = await getImage({
+      src: trip.cover.src,
+      width: Math.min(360, trip.cover.src.width),
+      format: "webp",
+      quality: 76,
+    });
+
+    return {
+      ...trip,
+      coverImage: {
+        src: fallback.src,
+        srcset: coverImages.map((image) => `${image.src} ${image.options.width}w`).join(", "),
+      },
+    };
+  }),
+);
 ---
 
 <BaseLayout title="Travel Journal">
@@ -27,10 +61,21 @@ const trips = getTrips();
       </div>
     ) : (
       <div class="grid">
-        {trips.map((trip) => (
+        {tripsWithCovers.map((trip) => (
           <a class="card" href={`/trips/${trip.slug}/`}>
             <div class="card-media">
-              {trip.cover && <img src={trip.cover.src} alt={trip.cover.alt} loading="lazy" />}
+              {trip.cover && trip.coverImage && (
+                <img
+                  src={trip.coverImage.src}
+                  srcset={trip.coverImage.srcset}
+                  alt={trip.cover.alt}
+                  sizes="(max-width: 740px) calc(100vw - 32px), 360px"
+                  loading="lazy"
+                  decoding="async"
+                  width={trip.cover.src.width}
+                  height={trip.cover.src.height}
+                />
+              )}
             </div>
             <div class="card-body">
               <p class="eyebrow">{trip.days.length} day{trip.days.length === 1 ? "" : "s"}</p>

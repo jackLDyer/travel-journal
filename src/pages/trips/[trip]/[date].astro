@@ -1,4 +1,5 @@
 ---
+import { getImage } from "astro:assets";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { formatDisplayDate, getTrips } from "@/lib/trips";
 
@@ -13,6 +14,35 @@ export function getStaticPaths() {
 
 const { trip, day } = Astro.props;
 const Summary = day.summary?.Content;
+const optimizedPhotos = await Promise.all(
+  day.photos.map(async (photo) => {
+    const thumbnailWidths = [480, 720, 960].filter((width) => width <= photo.src.width);
+    const thumbnailImages = await Promise.all(
+      thumbnailWidths.map((width) =>
+        getImage({
+          src: photo.src,
+          width,
+          format: "webp",
+          quality: 76,
+        }),
+      ),
+    );
+    const fallback =
+      await getImage({
+        src: photo.src,
+        width: Math.min(480, photo.src.width),
+        format: "webp",
+        quality: 76,
+      });
+
+    return {
+      ...photo,
+      fallbackSrc: fallback.src,
+      srcset: thumbnailImages.map((image) => `${image.src} ${image.options.width}w`).join(", "),
+      lightboxSrc: photo.src.src,
+    };
+  }),
+);
 ---
 
 <BaseLayout title={`${day.title} | ${trip.title}`} description={`${trip.title}, ${day.date}`}>
@@ -43,9 +73,18 @@ const Summary = day.summary?.Content;
       </div>
     ) : (
       <div class="photo-grid">
-        {day.photos.map((photo) => (
-          <button class="photo-button" type="button" data-lightbox-src={photo.src}>
-            <img src={photo.src} alt={photo.alt} loading="lazy" />
+        {optimizedPhotos.map((photo) => (
+          <button class="photo-button" type="button" data-lightbox-src={photo.lightboxSrc}>
+            <img
+              src={photo.fallbackSrc}
+              srcset={photo.srcset}
+              alt={photo.alt}
+              sizes="(max-width: 740px) calc(100vw - 32px), 33vw"
+              loading="lazy"
+              decoding="async"
+              width={photo.src.width}
+              height={photo.src.height}
+            />
           </button>
         ))}
       </div>

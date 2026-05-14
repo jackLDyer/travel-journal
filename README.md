@@ -1,6 +1,6 @@
 # Travel Journal
 
-A static Astro site for travel journals, organised by trip and day folders. Each day can include a markdown summary and photos, and a local CLI can sort image files into day folders from their EXIF taken-date metadata.
+A static Astro site for travel journals, organised by trip and day folders. Each day can include a markdown summary and web-sized photos, and a local CLI can sort and optimize image files into day folders from their EXIF taken-date metadata.
 
 ## Content structure
 
@@ -11,7 +11,7 @@ src/content/trips/<trip-slug>/
     YYYY-MM-DD/
       summary.md
       photos/
-        image-1.jpg
+        image-1.webp
     unsorted/
 ```
 
@@ -38,6 +38,7 @@ npm run dev
 npm run build
 npm run test
 npm run sort-photos -- --input ./photo-dump --trip lisbon --dry-run
+npm run sort-photos -- --input ./photo-dump --trip lisbon --optimize
 ```
 
-The sorter copies by default. Use `--move` only when you intentionally want to move originals out of the input folder. Files without reliable EXIF taken-date metadata are placed in `src/content/trips/<trip>/days/unsorted/`.
+The sorter copies by default. Use `--optimize` for the normal GitHub Pages workflow: it writes 1600px WebP files at quality 76, rotates from EXIF, strips metadata, and keeps originals in the input folder. Keep full-resolution originals outside this repo. Use `--move` only when you intentionally want to move originals out of the input folder. Files without reliable EXIF taken-date metadata are placed in `src/content/trips/<trip>/days/unsorted/`.

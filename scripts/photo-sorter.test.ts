@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   formatDay,
   getDestinationDirectory,
+  getOptimizedFilename,
   isSupportedImage,
   parseExifDate,
   planPhotoSort,
@@ -39,6 +40,11 @@ describe("photo sorter", () => {
     );
   });
 
+  it("uses webp filenames for optimized copies", () => {
+    expect(getOptimizedFilename("IMG_1234.JPG")).toBe("IMG_1234.webp");
+    expect(getOptimizedFilename("edited.photo.png")).toBe("edited.photo.webp");
+  });
+
   it("adds numeric suffixes for destination collisions", async ({ task }) => {
     const root = path.join(process.cwd(), ".tmp-tests", task.id);
     await mkdir(root, { recursive: true });
@@ -71,5 +77,26 @@ describe("photo sorter", () => {
     expect(result.operations[0].day).toBe("unsorted");
     expect(result.operations[0].destination).toBe(path.join(output, "rome", "days", "unsorted", "a.jpg"));
     expect(result.counts.get("unsorted")).toBe(1);
+  });
+
+  it("plans optimized operations as webp without deleting originals", async ({ task }) => {
+    const root = path.join(process.cwd(), ".tmp-tests", task.id);
+    const input = path.join(root, "input");
+    const output = path.join(root, "trips");
+    await mkdir(input, { recursive: true });
+    await writeFile(path.join(input, "a.JPG"), "not real exif");
+
+    const result = await planPhotoSort({
+      input,
+      trip: "rome",
+      contentRoot: output,
+      optimize: true,
+      move: true,
+      dryRun: true,
+    });
+
+    expect(result.operations).toHaveLength(1);
+    expect(result.operations[0].action).toBe("optimize");
+    expect(result.operations[0].destination).toBe(path.join(output, "rome", "days", "unsorted", "a.webp"));
   });
 });

@@ -1,4 +1,5 @@
 import type { MarkdownInstance } from "astro";
+import type { ImageMetadata } from "astro";
 
 type MarkdownContent = {
   Content?: MarkdownInstance<Record<string, unknown>>["Content"];
@@ -6,7 +7,7 @@ type MarkdownContent = {
 };
 
 export type Photo = {
-  src: string;
+  src: ImageMetadata;
   filename: string;
   alt: string;
 };
@@ -38,12 +39,11 @@ const daySummaries = import.meta.glob<MarkdownContent>(
   { eager: true },
 );
 
-const photoModules = import.meta.glob<string>(
-  "/src/content/trips/*/days/*/photos/*.{jpg,jpeg,png,webp,heic,JPG,JPEG,PNG,WEBP,HEIC}",
+const photoModules = import.meta.glob<ImageMetadata>(
+  "/src/content/trips/*/days/*/photos/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}",
   {
     eager: true,
     import: "default",
-    query: "?url",
   },
 );
 
