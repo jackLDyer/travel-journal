@@ -10,6 +10,7 @@ import {
   parseExifDate,
   planDayScaffolds,
   planPhotoSort,
+  planTripScaffolds,
   resolveAvailablePath,
 } from "./photo-sorter";
 
@@ -71,6 +72,58 @@ describe("photo sorter", () => {
     expect(path.basename(second)).toBe("photo-3.jpg");
   });
 
+  it("skips duplicate destinations instead of renaming them", async ({ task }) => {
+    vi.mocked(exifr.parse).mockResolvedValue({
+      DateTimeOriginal: new Date(2026, 4, 14, 12, 30),
+    });
+    const root = path.join(process.cwd(), ".tmp-tests", task.id);
+    const input = path.join(root, "input");
+    const output = path.join(root, "trips");
+    const destinationDirectory = path.join(output, "rome", "days", "2026-05-14", "photos");
+    await mkdir(input, { recursive: true });
+    await mkdir(destinationDirectory, { recursive: true });
+    await writeFile(path.join(input, "a.jpg"), "first");
+    await writeFile(path.join(input, "a.png"), "second");
+
+    const result = await planPhotoSort({
+      input,
+      trip: "rome",
+      contentRoot: output,
+      dryRun: true,
+      optimize: true,
+    });
+
+    expect(result.operations).toHaveLength(1);
+    expect(path.basename(result.operations[0].destination)).toBe("a.webp");
+    expect(result.skipped).toHaveLength(1);
+    expect(result.skipped[0]).toBe(path.join(input, "a.png"));
+  });
+
+  it("skips imports when the destination file already exists", async ({ task }) => {
+    vi.mocked(exifr.parse).mockResolvedValue({
+      DateTimeOriginal: new Date(2026, 4, 14, 12, 30),
+    });
+    const root = path.join(process.cwd(), ".tmp-tests", task.id);
+    const input = path.join(root, "input");
+    const output = path.join(root, "trips");
+    const destinationDirectory = path.join(output, "rome", "days", "2026-05-14", "photos");
+    await mkdir(input, { recursive: true });
+    await mkdir(destinationDirectory, { recursive: true });
+    await writeFile(path.join(input, "a.jpg"), "incoming");
+    await writeFile(path.join(destinationDirectory, "a.webp"), "existing");
+
+    const result = await planPhotoSort({
+      input,
+      trip: "rome",
+      contentRoot: output,
+      dryRun: true,
+      optimize: true,
+    });
+
+    expect(result.operations).toEqual([]);
+    expect(result.skipped).toEqual([path.join(input, "a.jpg")]);
+  });
+
   it("plans unsupported-date files into unsorted without mutating input", async ({ task }) => {
     const root = path.join(process.cwd(), ".tmp-tests", task.id);
     const input = path.join(root, "input");
@@ -89,7 +142,18 @@ describe("photo sorter", () => {
     expect(result.operations).toHaveLength(1);
     expect(result.operations[0].day).toBe("unsorted");
     expect(result.operations[0].destination).toBe(path.join(output, "rome", "days", "unsorted", "a.jpg"));
-    expect(result.scaffoldOperations).toEqual([]);
+    expect(result.scaffoldOperations).toEqual([
+      {
+        destination: path.join(output, "rome", "summary.md"),
+        filename: "summary.md",
+        content: "Write the trip summary here.\n",
+      },
+      {
+        destination: path.join(output, "rome", "meta.yaml"),
+        filename: "meta.yaml",
+        content: 'coverPhoto: ""\n',
+      },
+    ]);
     expect(result.counts.get("unsorted")).toBe(1);
   });
 
@@ -112,14 +176,45 @@ describe("photo sorter", () => {
 
     expect(result.operations).toHaveLength(1);
     expect(result.operations[0].day).toBe("2026-05-14");
-    expect(result.scaffoldOperations.map((operation) => path.basename(operation.destination))).toEqual([
-      "summary.md",
-      "meta.yaml",
-    ]);
     expect(result.scaffoldOperations.map((operation) => operation.destination)).toEqual([
+      path.join(output, "rome", "summary.md"),
+      path.join(output, "rome", "meta.yaml"),
       path.join(output, "rome", "days", "2026-05-14", "summary.md"),
       path.join(output, "rome", "days", "2026-05-14", "meta.yaml"),
     ]);
+  });
+
+  it("plans a trip-level meta file when missing", async ({ task }) => {
+    const root = path.join(process.cwd(), ".tmp-tests", task.id);
+    const output = path.join(root, "trips");
+
+    const result = await planTripScaffolds(output, "rome");
+
+    expect(result).toEqual([
+      {
+        destination: path.join(output, "rome", "summary.md"),
+        filename: "summary.md",
+        content: "Write the trip summary here.\n",
+      },
+      {
+        destination: path.join(output, "rome", "meta.yaml"),
+        filename: "meta.yaml",
+        content: 'coverPhoto: ""\n',
+      },
+    ]);
+  });
+
+  it("does not plan an existing trip-level meta file for overwrite", async ({ task }) => {
+    const root = path.join(process.cwd(), ".tmp-tests", task.id);
+    const output = path.join(root, "trips");
+    const tripDirectory = path.join(output, "rome");
+    await mkdir(tripDirectory, { recursive: true });
+    await writeFile(path.join(tripDirectory, "summary.md"), "Existing trip summary\n");
+    await writeFile(path.join(tripDirectory, "meta.yaml"), 'coverPhoto: "days/2026-05-14/photos/a.webp"\n');
+
+    const result = await planTripScaffolds(output, "rome");
+
+    expect(result).toEqual([]);
   });
 
   it("does not plan existing scaffold files for overwrite", async ({ task }) => {

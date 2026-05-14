@@ -7,6 +7,8 @@ A static Astro site for travel journals, organised by trip and day folders. Each
 ```text
 src/content/trips/<trip-slug>/
   trip.md
+  summary.md
+  meta.yaml
   days/
     YYYY-MM-DD/
       summary.md
@@ -16,7 +18,7 @@ src/content/trips/<trip-slug>/
     unsorted/
 ```
 
-`trip.md` and `summary.md` can include optional frontmatter:
+`trip.md`, trip-level `summary.md`, and day `summary.md` can include optional frontmatter:
 
 ```md
 ---
@@ -38,6 +40,16 @@ highlights:
   - Late dinner by the river
 ```
 
+Trip-level summary content lives in `src/content/trips/<trip-slug>/summary.md` and is shown on the trip page.
+
+Trip-level metadata lives in `src/content/trips/<trip-slug>/meta.yaml`:
+
+```yaml
+coverPhoto: "days/2026-05-14/photos/IMG_1234.webp"
+```
+
+`coverPhoto` is optional and should be a path relative to the trip root. When set, the homepage uses that image for the trip card; otherwise it falls back to the first available photo.
+
 ## Commands
 
 Requires Node.js `>=22.12.0`.
@@ -51,4 +63,4 @@ npm run sort-photos -- --input ./photo-dump --trip lisbon --dry-run
 npm run sort-photos -- --input ./photo-dump --trip lisbon
 ```
 
-The sorter optimizes by default for the normal GitHub Pages workflow: it writes 1600px WebP files at quality 76, rotates from EXIF, strips metadata, and keeps originals in the input folder. For each dated day that receives photos, it also creates missing `summary.md` and `meta.yaml` placeholder files without overwriting existing content. Keep full-resolution originals outside this repo. Use `--originals` only when you intentionally want to copy original files, and use `--move --originals` only when you intentionally want to move originals out of the input folder. Files without reliable EXIF taken-date metadata are placed in `src/content/trips/<trip>/days/unsorted/`.
+The sorter optimizes by default for the normal GitHub Pages workflow: it writes 1600px WebP files at quality 76, rotates from EXIF, strips metadata, and keeps originals in the input folder. For each import it also creates missing trip root `summary.md` and `meta.yaml` files, and for each dated day that receives photos it creates missing day `summary.md` and `meta.yaml` placeholder files without overwriting existing content. Keep full-resolution originals outside this repo. Use `--originals` only when you intentionally want to copy original files, and use `--move --originals` only when you intentionally want to move originals out of the input folder. Files without reliable EXIF taken-date metadata are placed in `src/content/trips/<trip>/days/unsorted/`.

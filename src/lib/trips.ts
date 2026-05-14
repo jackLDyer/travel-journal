@@ -30,11 +30,20 @@ export type Trip = {
   title: string;
   description?: string;
   intro?: MarkdownContent;
+  summary?: MarkdownContent;
   days: Day[];
   cover?: Photo;
 };
 
+type TripMeta = {
+  coverPhoto?: string;
+};
+
 const tripIntros = import.meta.glob<MarkdownContent>("/src/content/trips/*/trip.md", {
+  eager: true,
+});
+
+const tripSummaries = import.meta.glob<MarkdownContent>("/src/content/trips/*/summary.md", {
   eager: true,
 });
 
@@ -44,6 +53,12 @@ const daySummaries = import.meta.glob<MarkdownContent>(
 );
 
 const dayMetas = import.meta.glob<string>("/src/content/trips/*/days/*/meta.yaml", {
+  eager: true,
+  import: "default",
+  query: "?raw",
+});
+
+const tripMetas = import.meta.glob<string>("/src/content/trips/*/meta.yaml", {
   eager: true,
   import: "default",
   query: "?raw",
@@ -62,6 +77,8 @@ const dayMetaPathPattern = /^\/src\/content\/trips\/([^/]+)\/days\/([^/]+)\/meta
 const photoPathPattern =
   /^\/src\/content\/trips\/([^/]+)\/days\/([^/]+)\/photos\/([^/]+)$/;
 const tripPathPattern = /^\/src\/content\/trips\/([^/]+)\/trip\.md$/;
+const tripSummaryPathPattern = /^\/src\/content\/trips\/([^/]+)\/summary\.md$/;
+const tripMetaPathPattern = /^\/src\/content\/trips\/([^/]+)\/meta\.yaml$/;
 const validDayPattern = /^\d{4}-\d{2}-\d{2}$/;
 
 export function titleFromSlug(slug: string) {
@@ -129,6 +146,17 @@ function parseDayMeta(raw: string) {
   }
 }
 
+function parseTripMeta(raw: string): TripMeta {
+  try {
+    const parsed = parseYaml(raw) as Record<string, unknown> | null;
+    return {
+      coverPhoto: asString(parsed?.coverPhoto),
+    };
+  } catch {
+    return {};
+  }
+}
+
 function formatDayOrdinal(index: number) {
   const words = [
     "One",
@@ -169,6 +197,17 @@ function formatDayOrdinal(index: number) {
 
 export function getTrips(): Trip[] {
   const daysByTrip = new Map<string, Map<string, Day>>();
+  const tripMetaBySlug = new Map<string, TripMeta>();
+
+  for (const [path, rawMeta] of Object.entries(tripMetas)) {
+    const match = path.match(tripMetaPathPattern);
+    if (!match) {
+      continue;
+    }
+
+    const [, tripSlug] = match;
+    tripMetaBySlug.set(tripSlug, parseTripMeta(rawMeta));
+  }
 
   for (const [path, rawMeta] of Object.entries(dayMetas)) {
     const match = path.match(dayMetaPathPattern);
@@ -240,11 +279,18 @@ export function getTrips(): Trip[] {
       tripSlugs.add(match[1]);
     }
   }
+  for (const path of Object.keys(tripSummaries)) {
+    const match = path.match(tripSummaryPathPattern);
+    if (match) {
+      tripSlugs.add(match[1]);
+    }
+  }
 
   return [...tripSlugs]
     .sort()
     .map((slug) => {
       const intro = tripIntros[`/src/content/trips/${slug}/trip.md`];
+      const summary = tripSummaries[`/src/content/trips/${slug}/summary.md`];
       const frontmatter = getFrontmatter(intro);
       const days = [...(daysByTrip.get(slug)?.values() ?? [])]
         .sort((a, b) => a.date.localeCompare(b.date))
@@ -253,14 +299,24 @@ export function getTrips(): Trip[] {
           ordinalLabel: formatDayOrdinal(index),
           photos: day.photos.sort((a, b) => a.filename.localeCompare(b.filename)),
         }));
+      const explicitCoverPath = tripMetaBySlug.get(slug)?.coverPhoto;
+      const photosByPath = new Map<string, Photo>(
+        days.flatMap((day) =>
+          day.photos.map((photo) => [`days/${day.date}/photos/${photo.filename}`, photo] as const),
+        ),
+      );
+      const cover = explicitCoverPath
+        ? photosByPath.get(explicitCoverPath) ?? days.find((day) => day.photos.length > 0)?.photos[0]
+        : days.find((day) => day.photos.length > 0)?.photos[0];
 
       return {
         slug,
         title: asString(frontmatter.title) ?? titleFromSlug(slug),
         description: asString(frontmatter.description),
         intro,
+        summary,
         days,
-        cover: days.find((day) => day.photos.length > 0)?.photos[0],
+        cover,
       };
     });
 }

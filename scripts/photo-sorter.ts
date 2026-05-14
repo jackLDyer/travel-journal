@@ -7,8 +7,12 @@ const DEFAULT_OPTIMIZED_MAX_DIMENSION = 1600;
 const DEFAULT_OPTIMIZED_QUALITY = 76;
 const SUMMARY_PLACEHOLDER = `Write the day's story here.
 `;
+const TRIP_SUMMARY_PLACEHOLDER = `Write the trip summary here.
+`;
 const META_PLACEHOLDER = `locations: []
 highlights: []
+`;
+const TRIP_META_PLACEHOLDER = `coverPhoto: ""
 `;
 
 export const SUPPORTED_IMAGE_EXTENSIONS = new Set([
@@ -39,7 +43,7 @@ export type PlannedOperation = {
 
 export type ScaffoldOperation = {
   destination: string;
-  day: string;
+  day?: string;
   filename: "summary.md" | "meta.yaml";
   content: string;
 };
@@ -203,6 +207,34 @@ export async function planDayScaffolds(
   return scaffoldOperations;
 }
 
+export async function planTripScaffolds(
+  contentRoot: string,
+  trip: string,
+): Promise<ScaffoldOperation[]> {
+  const tripDirectory = path.join(contentRoot, trip);
+  const files = [
+    {
+      destination: path.join(tripDirectory, "summary.md"),
+      filename: "summary.md" as const,
+      content: TRIP_SUMMARY_PLACEHOLDER,
+    },
+    {
+      destination: path.join(tripDirectory, "meta.yaml"),
+      filename: "meta.yaml" as const,
+      content: TRIP_META_PLACEHOLDER,
+    },
+  ];
+  const scaffoldOperations: ScaffoldOperation[] = [];
+
+  for (const file of files) {
+    if (!(await fileExists(file.destination))) {
+      scaffoldOperations.push(file);
+    }
+  }
+
+  return scaffoldOperations;
+}
+
 export async function planPhotoSort(options: SortPhotosOptions): Promise<SortPhotosResult> {
   const input = path.resolve(options.input);
   const contentRoot = path.resolve(options.contentRoot ?? path.join("src", "content", "trips"));
@@ -224,7 +256,15 @@ export async function planPhotoSort(options: SortPhotosOptions): Promise<SortPho
     const filename = options.optimize
       ? getOptimizedFilename(path.basename(source))
       : path.basename(source);
-    const destination = await resolveAvailablePath(destinationDirectory, filename, reserved);
+    const destination = path.join(destinationDirectory, filename);
+    const key = path.resolve(destination).toLowerCase();
+
+    if (reserved.has(key) || (await fileExists(destination))) {
+      skipped.push(source);
+      continue;
+    }
+
+    reserved.add(key);
 
     operations.push({
       source,
@@ -238,7 +278,10 @@ export async function planPhotoSort(options: SortPhotosOptions): Promise<SortPho
     }
   }
 
-  const scaffoldOperations = await planDayScaffolds(contentRoot, options.trip, datedDays);
+  const scaffoldOperations = [
+    ...(await planTripScaffolds(contentRoot, options.trip)),
+    ...(await planDayScaffolds(contentRoot, options.trip, datedDays)),
+  ];
 
   return { operations, scaffoldOperations, skipped, counts };
 }

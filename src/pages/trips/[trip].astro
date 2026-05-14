@@ -12,6 +12,7 @@ export function getStaticPaths() {
 
 const { trip } = Astro.props;
 const Intro = trip.intro?.Content;
+const Summary = trip.summary?.Content;
 ---
 
 <BaseLayout title={`${trip.title} | Travel Journal`} description={trip.description}>
@@ -24,6 +25,12 @@ const Intro = trip.intro?.Content;
   {Intro && (
     <section class="section prose trip-intro">
       <Intro />
+    </section>
+  )}
+
+  {Summary && (
+    <section class="section prose trip-summary">
+      <Summary />
     </section>
   )}
 

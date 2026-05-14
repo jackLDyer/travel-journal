@@ -94,6 +94,13 @@ function printResult(result: Awaited<ReturnType<typeof sortPhotos>>, dryRun: boo
     }
   }
 
+  if (result.skipped.length > 0) {
+    console.log(`\nSkipped ${result.skipped.length} duplicate photo(s).`);
+    for (const skipped of result.skipped) {
+      console.log(`SKIPPED: ${skipped}`);
+    }
+  }
+
   if (result.counts.size > 0) {
     console.log("\nSummary:");
     for (const [day, count] of [...result.counts.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
