@@ -1,6 +1,7 @@
 ---
 import { getImage } from "astro:assets";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import { withBase } from "@/lib/routes";
 import { formatDisplayDate, getTrips } from "@/lib/trips";
 
 export function getStaticPaths() {
@@ -16,6 +17,12 @@ const { trip, day } = Astro.props;
 const Summary = day.summary?.Content;
 const displayDate = formatDisplayDate(day.date);
 const locations = day.locations.length > 0 ? day.locations : day.location ? [day.location] : [];
+const currentDayIndex = trip.days.findIndex((tripDay) => tripDay.date === day.date);
+const previousDay = currentDayIndex > 0 ? trip.days[currentDayIndex - 1] : undefined;
+const nextDay =
+  currentDayIndex >= 0 && currentDayIndex < trip.days.length - 1
+    ? trip.days[currentDayIndex + 1]
+    : undefined;
 const optimizedPhotos = await Promise.all(
   day.photos.map(async (photo) => {
     const thumbnailWidths = [480, 720, 960].filter((width) => width <= photo.src.width);
@@ -105,6 +112,29 @@ const optimizedPhotos = await Promise.all(
       </div>
     )}
   </section>
+
+  {(previousDay || nextDay) && (
+    <nav class="section day-navigation" aria-label="Day navigation">
+      {previousDay && (
+        <a
+          class="day-navigation-link day-navigation-link-previous"
+          href={withBase(`/trips/${trip.slug}/${previousDay.date}/`)}
+        >
+          <span class="meta-label">Previous day</span>
+          <span>{previousDay.ordinalLabel} &middot; {previousDay.title}</span>
+        </a>
+      )}
+      {nextDay && (
+        <a
+          class="day-navigation-link day-navigation-link-next"
+          href={withBase(`/trips/${trip.slug}/${nextDay.date}/`)}
+        >
+          <span class="meta-label">Next day</span>
+          <span>{nextDay.ordinalLabel} &middot; {nextDay.title}</span>
+        </a>
+      )}
+    </nav>
+  )}
 
   <dialog class="lightbox" aria-label="Photo viewer">
     <button class="lightbox-close" type="button" aria-label="Close photo viewer">x</button>

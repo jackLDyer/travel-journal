@@ -374,6 +374,42 @@ h3 {
   transform: scale(1.04);
 }
 
+.day-navigation {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.day-navigation-link {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: rgba(255, 249, 236, 0.8);
+  color: var(--ink);
+  font-weight: 800;
+  text-decoration: none;
+  transition: transform 180ms ease, background 180ms ease;
+}
+
+.day-navigation-link:hover {
+  background: var(--paper-strong);
+  transform: translateY(-4px);
+}
+
+.day-navigation-link-previous {
+  justify-self: start;
+  text-align: left;
+}
+
+.day-navigation-link-next {
+  grid-column: 2;
+  justify-self: end;
+  text-align: right;
+}
+
 .lightbox {
   position: fixed;
   inset: 0;
@@ -452,5 +488,16 @@ h3 {
   .photo-button:nth-child(5n + 2) {
     grid-column: 1 / -1;
     min-height: 260px;
+  }
+
+  .day-navigation {
+    grid-template-columns: 1fr;
+  }
+
+  .day-navigation-link,
+  .day-navigation-link-next {
+    grid-column: 1;
+    justify-self: stretch;
+    text-align: left;
   }
 }
