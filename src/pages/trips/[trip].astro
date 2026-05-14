@@ -53,11 +53,15 @@ const Summary = trip.summary?.Content;
               <span class="day-details">
                 <strong>{day.title}</strong>
                 {day.title !== displayDate && <span class="meta">{displayDate}</span>}
-                {locations.length > 0 && (
-                  <span class="meta">{locations.join(", ")}</span>
-                )}
-                {day.highlights.length > 0 && (
-                  <span class="meta">Highlights: {day.highlights.join(", ")}</span>
+                {(locations.length > 0 || day.highlights.length > 0) && (
+                  <span class="day-meta-row">
+                    {locations.length > 0 && (
+                      <span class="meta day-locations">{locations.join(", ")}</span>
+                    )}
+                    {day.highlights.length > 0 && (
+                      <span class="meta day-highlights">{day.highlights.join(", ")}</span>
+                    )}
+                  </span>
                 )}
               </span>
               <span class="meta photo-count">{day.photos.length} photo{day.photos.length === 1 ? "" : "s"}</span>

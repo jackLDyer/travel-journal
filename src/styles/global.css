@@ -297,6 +297,22 @@ h3 {
   gap: 4px;
 }
 
+.day-meta-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  gap: 16px;
+  align-items: baseline;
+}
+
+.day-locations {
+  min-width: 0;
+}
+
+.day-highlights {
+  justify-self: end;
+  text-align: right;
+}
+
 .date-pill {
   display: inline-flex;
   justify-content: center;
@@ -419,6 +435,16 @@ h3 {
 
   .photo-count {
     justify-self: start;
+  }
+
+  .day-meta-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .day-highlights {
+    justify-self: start;
+    text-align: left;
   }
 
   .photo-button,
