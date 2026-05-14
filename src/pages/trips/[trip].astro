@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { formatDisplayDate, getTrips } from "@/lib/trips";
+import { withBase } from "@/lib/routes";
 
 export function getStaticPaths() {
   return getTrips().map((trip) => ({
@@ -36,7 +37,7 @@ const Intro = trip.intro?.Content;
     ) : (
       <div class="timeline">
         {trip.days.map((day) => (
-          <a class="day-link" href={`/trips/${trip.slug}/${day.date}/`}>
+          <a class="day-link" href={withBase(`/trips/${trip.slug}/${day.date}/`)}>
             <span class="date-pill">{formatDisplayDate(day.date)}</span>
             <span>
               <strong>{day.title}</strong>

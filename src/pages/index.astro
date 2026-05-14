@@ -2,6 +2,7 @@
 import { getImage } from "astro:assets";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { getTrips } from "@/lib/trips";
+import { withBase } from "@/lib/routes";
 
 const trips = getTrips();
 const tripsWithCovers = await Promise.all(
@@ -62,7 +63,7 @@ const tripsWithCovers = await Promise.all(
     ) : (
       <div class="grid">
         {tripsWithCovers.map((trip) => (
-          <a class="card" href={`/trips/${trip.slug}/`}>
+          <a class="card" href={withBase(`/trips/${trip.slug}/`)}>
             <div class="card-media">
               {trip.cover && trip.coverImage && (
                 <img

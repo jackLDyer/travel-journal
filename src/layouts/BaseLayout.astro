@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import { withBase } from "@/lib/routes";
 
 interface Props {
   title?: string;
@@ -22,7 +23,7 @@ const {
   </head>
   <body>
     <header class="site-header shell">
-      <a class="brand" href="/">
+      <a class="brand" href={withBase("/")}>
         <span class="brand-mark" aria-hidden="true"></span>
         <span>Travel Journal</span>
       </a>
