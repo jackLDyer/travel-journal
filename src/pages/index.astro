@@ -60,27 +60,27 @@ const tripsWithCovers = await Promise.all(
         </p>
       </div>
     ) : (
-      <div class="grid">
+        <div class="grid">
         {tripsWithCovers.map((trip) => (
           <a class="card" href={withBase(`/trips/${trip.slug}/`)}>
+            <div class="card-body">
+              <p class="eyebrow">{trip.days.length} day{trip.days.length === 1 ? "" : "s"}</p>
+              <h3>{trip.title}</h3>
+              {trip.description && <p class="meta">{trip.description}</p>}
+            </div>
             <div class="card-media">
               {trip.cover && trip.coverImage && (
                 <img
                   src={trip.coverImage.src}
                   srcset={trip.coverImage.srcset}
                   alt={trip.cover.alt}
-                  sizes="(max-width: 740px) calc(100vw - 32px), 360px"
+                  sizes="(max-width: 740px) calc(100vw - 32px), (max-width: 1120px) 36vw, 360px"
                   loading="lazy"
                   decoding="async"
                   width={trip.cover.src.width}
                   height={trip.cover.src.height}
                 />
               )}
-            </div>
-            <div class="card-body">
-              <p class="eyebrow">{trip.days.length} day{trip.days.length === 1 ? "" : "s"}</p>
-              <h3>{trip.title}</h3>
-              {trip.description && <p class="meta">{trip.description}</p>}
             </div>
           </a>
         ))}

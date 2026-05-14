@@ -177,9 +177,11 @@ h3 {
 }
 
 .card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   position: relative;
   overflow: hidden;
-  min-height: 330px;
+  height: clamp(190px, 20vw, 220px);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: rgba(255, 249, 236, 0.82);
@@ -194,7 +196,8 @@ h3 {
 }
 
 .card-media {
-  height: 210px;
+  overflow: hidden;
+  min-height: 100%;
   background:
     linear-gradient(135deg, rgba(49, 92, 72, 0.26), rgba(233, 180, 76, 0.24)),
     repeating-linear-gradient(45deg, rgba(24, 32, 28, 0.08) 0 1px, transparent 1px 12px);
@@ -204,10 +207,33 @@ h3 {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
 .card-body {
-  padding: 22px;
+  display: grid;
+  align-content: end;
+  gap: 8px;
+  min-width: 0;
+  padding: 20px 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 249, 236, 0.9), rgba(247, 241, 229, 0.98)),
+    radial-gradient(circle at 18% 16%, rgba(233, 180, 76, 0.16), transparent 9rem);
+}
+
+.card-body h3,
+.card-body .meta {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
+.card-body h3 {
+  -webkit-line-clamp: 2;
+}
+
+.card-body .meta {
+  -webkit-line-clamp: 3;
 }
 
 .meta {
@@ -354,6 +380,16 @@ h3 {
 @media (max-width: 740px) {
   .hero {
     padding: 34px 24px;
+  }
+
+  .card {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .card-media {
+    min-height: 220px;
+    order: -1;
   }
 
   .day-link {
