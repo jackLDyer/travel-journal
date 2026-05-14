@@ -1,6 +1,7 @@
 import type { MarkdownInstance } from "astro";
 import type { ImageMetadata } from "astro";
 import { parse as parseYaml } from "yaml";
+import { appendTripYears } from "./trip-titles";
 
 type MarkdownContent = {
   Content?: MarkdownInstance<Record<string, unknown>>["Content"];
@@ -308,10 +309,14 @@ export function getTrips(): Trip[] {
       const cover = explicitCoverPath
         ? photosByPath.get(explicitCoverPath) ?? days.find((day) => day.photos.length > 0)?.photos[0]
         : days.find((day) => day.photos.length > 0)?.photos[0];
+      const baseTitle = asString(frontmatter.title) ?? titleFromSlug(slug);
 
       return {
         slug,
-        title: asString(frontmatter.title) ?? titleFromSlug(slug),
+        title: appendTripYears(
+          baseTitle,
+          days.map((day) => day.date),
+        ),
         description: asString(frontmatter.description),
         intro,
         summary,
