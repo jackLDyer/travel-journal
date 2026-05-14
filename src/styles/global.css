@@ -85,13 +85,13 @@ img {
 .hero {
   position: relative;
   overflow: hidden;
-  padding: clamp(48px, 8vw, 96px);
+  padding: clamp(24px, 4vw, 42px);
   border: 1px solid var(--line);
-  border-radius: calc(var(--radius) + 16px);
+  border-radius: var(--radius);
   background:
     linear-gradient(135deg, rgba(255, 249, 236, 0.94), rgba(247, 241, 229, 0.78)),
     radial-gradient(circle at 92% 20%, rgba(185, 95, 61, 0.18), transparent 18rem);
-  box-shadow: var(--shadow);
+  box-shadow: 0 18px 58px rgba(30, 41, 34, 0.14);
 }
 
 .hero::after {
@@ -124,9 +124,9 @@ h3 {
 }
 
 h1 {
-  max-width: 760px;
-  font-size: clamp(3.4rem, 10vw, 8.5rem);
-  letter-spacing: -0.07em;
+  max-width: 720px;
+  font-size: clamp(2rem, 4vw, 3.6rem);
+  letter-spacing: -0.04em;
 }
 
 h2 {
@@ -140,14 +140,34 @@ h3 {
 }
 
 .lede {
-  max-width: 680px;
-  margin: 24px 0 0;
+  max-width: 640px;
+  margin: 14px 0 0;
   color: var(--muted);
-  font-size: clamp(1.05rem, 2vw, 1.25rem);
+  font-size: clamp(0.95rem, 1.25vw, 1rem);
 }
 
 .section {
   margin: clamp(36px, 7vw, 78px) 0;
+}
+
+.trip-intro {
+  margin-bottom: clamp(24px, 4vw, 48px);
+}
+
+.days-section {
+  margin-top: clamp(24px, 4vw, 48px);
+}
+
+.days-section > h2 {
+  margin-bottom: clamp(16px, 2.4vw, 28px);
+}
+
+.trips-section {
+  margin-top: clamp(24px, 4vw, 48px);
+}
+
+.trips-section > h2 {
+  margin-bottom: clamp(16px, 2.4vw, 28px);
 }
 
 .grid {
@@ -225,6 +245,11 @@ h3 {
   transform: translateX(6px);
 }
 
+.day-details {
+  display: grid;
+  gap: 4px;
+}
+
 .date-pill {
   display: inline-flex;
   justify-content: center;
@@ -233,6 +258,11 @@ h3 {
   background: rgba(49, 92, 72, 0.11);
   color: var(--fern);
   font-weight: 800;
+}
+
+.photo-count {
+  justify-self: end;
+  white-space: nowrap;
 }
 
 .prose {
@@ -328,6 +358,10 @@ h3 {
 
   .day-link {
     grid-template-columns: 1fr;
+  }
+
+  .photo-count {
+    justify-self: start;
   }
 
   .photo-button,

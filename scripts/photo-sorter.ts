@@ -1,10 +1,15 @@
-import { copyFile, mkdir, readdir, rename, stat } from "node:fs/promises";
+import { copyFile, mkdir, readdir, rename, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import exifr from "exifr";
 import sharp from "sharp";
 
 const DEFAULT_OPTIMIZED_MAX_DIMENSION = 1600;
 const DEFAULT_OPTIMIZED_QUALITY = 76;
+const SUMMARY_PLACEHOLDER = `Write the day's story here.
+`;
+const META_PLACEHOLDER = `locations: []
+highlights: []
+`;
 
 export const SUPPORTED_IMAGE_EXTENSIONS = new Set([
   ".jpg",
@@ -32,8 +37,16 @@ export type PlannedOperation = {
   action: "copy" | "move" | "optimize";
 };
 
+export type ScaffoldOperation = {
+  destination: string;
+  day: string;
+  filename: "summary.md" | "meta.yaml";
+  content: string;
+};
+
 export type SortPhotosResult = {
   operations: PlannedOperation[];
+  scaffoldOperations: ScaffoldOperation[];
   skipped: string[];
   counts: Map<string, number>;
 };
@@ -61,6 +74,10 @@ export function getDestinationDirectory(contentRoot: string, trip: string, day: 
   }
 
   return path.join(contentRoot, trip, "days", day, "photos");
+}
+
+export function getDayDirectory(contentRoot: string, trip: string, day: string) {
+  return path.join(contentRoot, trip, "days", day);
 }
 
 export function getOptimizedFilename(filename: string) {
@@ -141,12 +158,58 @@ export async function resolveAvailablePath(
   }
 }
 
+async function fileExists(filePath: string) {
+  try {
+    await stat(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function planDayScaffolds(
+  contentRoot: string,
+  trip: string,
+  days: Iterable<string>,
+): Promise<ScaffoldOperation[]> {
+  const scaffoldOperations: ScaffoldOperation[] = [];
+
+  for (const day of [...new Set(days)].sort((a, b) => a.localeCompare(b))) {
+    const dayDirectory = getDayDirectory(contentRoot, trip, day);
+    const files = [
+      {
+        filename: "summary.md" as const,
+        content: SUMMARY_PLACEHOLDER,
+      },
+      {
+        filename: "meta.yaml" as const,
+        content: META_PLACEHOLDER,
+      },
+    ];
+
+    for (const file of files) {
+      const destination = path.join(dayDirectory, file.filename);
+      if (!(await fileExists(destination))) {
+        scaffoldOperations.push({
+          destination,
+          day,
+          filename: file.filename,
+          content: file.content,
+        });
+      }
+    }
+  }
+
+  return scaffoldOperations;
+}
+
 export async function planPhotoSort(options: SortPhotosOptions): Promise<SortPhotosResult> {
   const input = path.resolve(options.input);
   const contentRoot = path.resolve(options.contentRoot ?? path.join("src", "content", "trips"));
   const imageFiles = await listImageFiles(input);
   const reserved = new Set<string>();
   const operations: PlannedOperation[] = [];
+  const datedDays = new Set<string>();
   const skipped: string[] = [];
   const counts = new Map<string, number>();
 
@@ -170,9 +233,14 @@ export async function planPhotoSort(options: SortPhotosOptions): Promise<SortPho
       action: options.optimize ? "optimize" : options.move ? "move" : "copy",
     });
     counts.set(day, (counts.get(day) ?? 0) + 1);
+    if (takenDate) {
+      datedDays.add(day);
+    }
   }
 
-  return { operations, skipped, counts };
+  const scaffoldOperations = await planDayScaffolds(contentRoot, options.trip, datedDays);
+
+  return { operations, scaffoldOperations, skipped, counts };
 }
 
 export async function optimizePhoto(
@@ -197,6 +265,17 @@ export async function sortPhotos(options: SortPhotosOptions) {
   const result = await planPhotoSort(options);
 
   if (!options.dryRun) {
+    for (const operation of result.scaffoldOperations) {
+      await mkdir(path.dirname(operation.destination), { recursive: true });
+      try {
+        await writeFile(operation.destination, operation.content, { flag: "wx" });
+      } catch (error) {
+        if (!isFileExistsError(error)) {
+          throw error;
+        }
+      }
+    }
+
     for (const operation of result.operations) {
       await mkdir(path.dirname(operation.destination), { recursive: true });
       if (operation.action === "optimize") {
@@ -215,4 +294,13 @@ export async function sortPhotos(options: SortPhotosOptions) {
   }
 
   return result;
+}
+
+function isFileExistsError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "EEXIST"
+  );
 }

@@ -1,18 +1,31 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import exifr from "exifr";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   formatDay,
   getDestinationDirectory,
   getOptimizedFilename,
   isSupportedImage,
   parseExifDate,
+  planDayScaffolds,
   planPhotoSort,
   resolveAvailablePath,
 } from "./photo-sorter";
 
+vi.mock("exifr", () => ({
+  default: {
+    parse: vi.fn(),
+  },
+}));
+
+beforeEach(() => {
+  vi.mocked(exifr.parse).mockResolvedValue(undefined);
+});
+
 afterEach(async () => {
   await rm(path.join(process.cwd(), ".tmp-tests"), { recursive: true, force: true });
+  vi.clearAllMocks();
 });
 
 describe("photo sorter", () => {
@@ -76,7 +89,50 @@ describe("photo sorter", () => {
     expect(result.operations).toHaveLength(1);
     expect(result.operations[0].day).toBe("unsorted");
     expect(result.operations[0].destination).toBe(path.join(output, "rome", "days", "unsorted", "a.jpg"));
+    expect(result.scaffoldOperations).toEqual([]);
     expect(result.counts.get("unsorted")).toBe(1);
+  });
+
+  it("plans scaffold files for dated photo imports", async ({ task }) => {
+    vi.mocked(exifr.parse).mockResolvedValue({
+      DateTimeOriginal: new Date(2026, 4, 14, 12, 30),
+    });
+    const root = path.join(process.cwd(), ".tmp-tests", task.id);
+    const input = path.join(root, "input");
+    const output = path.join(root, "trips");
+    await mkdir(input, { recursive: true });
+    await writeFile(path.join(input, "a.jpg"), "not real exif");
+
+    const result = await planPhotoSort({
+      input,
+      trip: "rome",
+      contentRoot: output,
+      dryRun: true,
+    });
+
+    expect(result.operations).toHaveLength(1);
+    expect(result.operations[0].day).toBe("2026-05-14");
+    expect(result.scaffoldOperations.map((operation) => path.basename(operation.destination))).toEqual([
+      "summary.md",
+      "meta.yaml",
+    ]);
+    expect(result.scaffoldOperations.map((operation) => operation.destination)).toEqual([
+      path.join(output, "rome", "days", "2026-05-14", "summary.md"),
+      path.join(output, "rome", "days", "2026-05-14", "meta.yaml"),
+    ]);
+  });
+
+  it("does not plan existing scaffold files for overwrite", async ({ task }) => {
+    const root = path.join(process.cwd(), ".tmp-tests", task.id);
+    const output = path.join(root, "trips");
+    const dayDirectory = path.join(output, "rome", "days", "2026-05-14");
+    await mkdir(dayDirectory, { recursive: true });
+    await writeFile(path.join(dayDirectory, "summary.md"), "Existing summary");
+    await writeFile(path.join(dayDirectory, "meta.yaml"), "locations: []\nhighlights: []\n");
+
+    const result = await planDayScaffolds(output, "rome", ["2026-05-14"]);
+
+    expect(result).toEqual([]);
   });
 
   it("plans optimized operations as webp without deleting originals", async ({ task }) => {

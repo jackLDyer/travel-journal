@@ -86,6 +86,14 @@ function printResult(result: Awaited<ReturnType<typeof sortPhotos>>, dryRun: boo
     console.log(`${action}: ${operation.source} -> ${operation.destination}`);
   }
 
+  if (result.scaffoldOperations.length > 0) {
+    console.log(`\n${verb} ${result.scaffoldOperations.length} scaffold file(s).`);
+    for (const operation of result.scaffoldOperations) {
+      const action = dryRun ? "CREATE" : "CREATED";
+      console.log(`${action}: ${operation.destination}`);
+    }
+  }
+
   if (result.counts.size > 0) {
     console.log("\nSummary:");
     for (const [day, count] of [...result.counts.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {

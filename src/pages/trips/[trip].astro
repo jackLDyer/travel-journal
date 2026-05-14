@@ -22,12 +22,12 @@ const Intro = trip.intro?.Content;
   </section>
 
   {Intro && (
-    <section class="section prose">
+    <section class="section prose trip-intro">
       <Intro />
     </section>
   )}
 
-  <section class="section" aria-labelledby="days-heading">
+  <section class="section days-section" aria-labelledby="days-heading">
     <h2 id="days-heading">Days</h2>
     {trip.days.length === 0 ? (
       <div class="empty-state">
@@ -36,16 +36,27 @@ const Intro = trip.intro?.Content;
       </div>
     ) : (
       <div class="timeline">
-        {trip.days.map((day) => (
-          <a class="day-link" href={withBase(`/trips/${trip.slug}/${day.date}/`)}>
-            <span class="date-pill">{formatDisplayDate(day.date)}</span>
-            <span>
-              <strong>{day.title}</strong>
-              {day.location && <span class="meta"> · {day.location}</span>}
-            </span>
-            <span class="meta">{day.photos.length} photo{day.photos.length === 1 ? "" : "s"}</span>
-          </a>
-        ))}
+        {trip.days.map((day) => {
+          const displayDate = formatDisplayDate(day.date);
+          const locations = day.locations.length > 0 ? day.locations : day.location ? [day.location] : [];
+
+          return (
+            <a class="day-link" href={withBase(`/trips/${trip.slug}/${day.date}/`)}>
+              <span class="date-pill">{day.ordinalLabel}</span>
+              <span class="day-details">
+                <strong>{day.title}</strong>
+                {day.title !== displayDate && <span class="meta">{displayDate}</span>}
+                {locations.length > 0 && (
+                  <span class="meta">Locations: {locations.join(", ")}</span>
+                )}
+                {day.highlights.length > 0 && (
+                  <span class="meta">Highlights: {day.highlights.join(", ")}</span>
+                )}
+              </span>
+              <span class="meta photo-count">{day.photos.length} photo{day.photos.length === 1 ? "" : "s"}</span>
+            </a>
+          );
+        })}
       </div>
     )}
   </section>
