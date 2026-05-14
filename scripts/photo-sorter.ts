@@ -248,6 +248,9 @@ export async function planPhotoSort(options: SortPhotosOptions): Promise<SortPho
   for (const source of imageFiles) {
     const takenDate = await getTakenDate(source);
     const day = takenDate ? formatDay(takenDate) : "unsorted";
+    if (takenDate) {
+      datedDays.add(day);
+    }
     const destinationDirectory = getDestinationDirectory(
       contentRoot,
       options.trip,
@@ -273,9 +276,6 @@ export async function planPhotoSort(options: SortPhotosOptions): Promise<SortPho
       action: options.optimize ? "optimize" : options.move ? "move" : "copy",
     });
     counts.set(day, (counts.get(day) ?? 0) + 1);
-    if (takenDate) {
-      datedDays.add(day);
-    }
   }
 
   const scaffoldOperations = [

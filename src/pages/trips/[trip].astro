@@ -54,7 +54,7 @@ const Summary = trip.summary?.Content;
                 <strong>{day.title}</strong>
                 {day.title !== displayDate && <span class="meta">{displayDate}</span>}
                 {locations.length > 0 && (
-                  <span class="meta">Locations: {locations.join(", ")}</span>
+                  <span class="meta">{locations.join(", ")}</span>
                 )}
                 {day.highlights.length > 0 && (
                   <span class="meta">Highlights: {day.highlights.join(", ")}</span>

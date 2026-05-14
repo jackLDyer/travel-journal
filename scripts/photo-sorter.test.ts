@@ -230,6 +230,37 @@ describe("photo sorter", () => {
     expect(result).toEqual([]);
   });
 
+  it("still plans day scaffolds when dated photos are skipped as duplicates", async ({ task }) => {
+    vi.mocked(exifr.parse).mockResolvedValue({
+      DateTimeOriginal: new Date(2026, 4, 14, 12, 30),
+    });
+    const root = path.join(process.cwd(), ".tmp-tests", task.id);
+    const input = path.join(root, "input");
+    const output = path.join(root, "trips");
+    const photoDirectory = path.join(output, "rome", "days", "2026-05-14", "photos");
+    await mkdir(input, { recursive: true });
+    await mkdir(photoDirectory, { recursive: true });
+    await writeFile(path.join(input, "a.jpg"), "new file");
+    await writeFile(path.join(photoDirectory, "a.webp"), "existing duplicate");
+
+    const result = await planPhotoSort({
+      input,
+      trip: "rome",
+      contentRoot: output,
+      dryRun: true,
+      optimize: true,
+    });
+
+    expect(result.operations).toEqual([]);
+    expect(result.skipped).toEqual([path.join(input, "a.jpg")]);
+    expect(result.scaffoldOperations.map((operation) => operation.destination)).toEqual([
+      path.join(output, "rome", "summary.md"),
+      path.join(output, "rome", "meta.yaml"),
+      path.join(output, "rome", "days", "2026-05-14", "summary.md"),
+      path.join(output, "rome", "days", "2026-05-14", "meta.yaml"),
+    ]);
+  });
+
   it("plans optimized operations as webp without deleting originals", async ({ task }) => {
     const root = path.join(process.cwd(), ".tmp-tests", task.id);
     const input = path.join(root, "input");
