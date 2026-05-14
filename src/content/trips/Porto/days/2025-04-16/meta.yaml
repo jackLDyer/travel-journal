@@ -1,2 +1,5 @@
-locations: [Porto, Douro Valley]
-highlights: [Wine Tasting, River Cruise]
+locations:
+  - Sabrosa
+  - Porto
+  - Vila Nova de Gaia
+highlights: [ Wine Tasting, River Cruise ]

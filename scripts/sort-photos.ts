@@ -9,6 +9,7 @@ type CliOptions = {
   dryRun?: boolean;
   optimize?: boolean;
   originals?: boolean;
+  locations?: boolean;
   maxDimension?: number;
   quality?: number;
   help?: boolean;
@@ -36,6 +37,8 @@ function readOptions(argv: string[]): CliOptions {
       options.optimize = true;
     } else if (arg === "--originals") {
       options.originals = true;
+    } else if (arg === "--no-locations") {
+      options.locations = false;
     } else if (arg === "--max-dimension") {
       options.maxDimension = Number(next);
       index += 1;
@@ -66,6 +69,7 @@ Options:
   --content-root <path>  Override the trips content root
   --optimize             Write optimized .webp files, default behavior
   --originals            Copy original files instead of optimizing to .webp
+  --no-locations         Skip GPS reverse-geocoding, location logs, and meta.yaml updates
   --max-dimension <px>   Longest optimized image edge, default 1600
   --quality <1-100>      WebP quality for optimized images, default 76
   --dry-run              Print planned operations without copying or moving
@@ -92,6 +96,20 @@ function printResult(result: Awaited<ReturnType<typeof sortPhotos>>, dryRun: boo
       const action = dryRun ? "CREATE" : "CREATED";
       console.log(`${action}: ${operation.destination}`);
     }
+  }
+
+  if (result.metadataOperations.length > 0) {
+    console.log(`\n${verb} ${result.metadataOperations.length} metadata update(s).`);
+    for (const operation of result.metadataOperations) {
+      const action = dryRun ? "UPDATE" : "UPDATED";
+      console.log(`${action}: ${operation.destination}`);
+      console.log(`  locations: ${operation.locations.join(", ") || "[]"}`);
+    }
+  }
+
+  if (result.geocodeCacheUpdates > 0) {
+    const action = dryRun ? "Would cache" : "Cached";
+    console.log(`\n${action} ${result.geocodeCacheUpdates} geocode result(s).`);
   }
 
   if (result.skipped.length > 0) {
@@ -155,6 +173,8 @@ async function main() {
     optimize,
     maxDimension: options.maxDimension,
     quality: options.quality,
+    enrichLocations: options.locations !== false,
+    log: options.locations === false ? undefined : console.log,
   });
 
   printResult(result, Boolean(options.dryRun));

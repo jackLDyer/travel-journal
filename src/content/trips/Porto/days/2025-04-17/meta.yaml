@@ -1,2 +1,3 @@
-locations: [Porto]
-highlights: [Amazing Seafood, Heading home]
+locations:
+  - Porto
+highlights: [ Amazing Seafood, Heading home ]

@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import exifr from "exifr";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,21 +12,25 @@ import {
   planPhotoSort,
   planTripScaffolds,
   resolveAvailablePath,
+  sortPhotos,
 } from "./photo-sorter";
 
 vi.mock("exifr", () => ({
   default: {
     parse: vi.fn(),
+    gps: vi.fn(),
   },
 }));
 
 beforeEach(() => {
   vi.mocked(exifr.parse).mockResolvedValue(undefined);
+  vi.mocked(exifr.gps).mockResolvedValue(undefined as unknown as Awaited<ReturnType<typeof exifr.gps>>);
 });
 
 afterEach(async () => {
   await rm(path.join(process.cwd(), ".tmp-tests"), { recursive: true, force: true });
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("photo sorter", () => {
@@ -280,5 +284,217 @@ describe("photo sorter", () => {
     expect(result.operations).toHaveLength(1);
     expect(result.operations[0].action).toBe("optimize");
     expect(result.operations[0].destination).toBe(path.join(output, "rome", "days", "unsorted", "a.webp"));
+  });
+
+  it("plans merged day metadata locations from GPS coordinates", async ({ task }) => {
+    vi.mocked(exifr.parse).mockResolvedValue({
+      DateTimeOriginal: new Date(2026, 4, 14, 12, 30),
+    });
+    vi.mocked(exifr.gps)
+      .mockResolvedValueOnce({ latitude: 41.1496, longitude: -8.6109 })
+      .mockResolvedValueOnce({ latitude: 41.1497, longitude: -8.6108 })
+      .mockResolvedValueOnce({ latitude: 41.1333, longitude: -8.6167 });
+    const fetchMock = vi.fn(async (url: URL | RequestInfo) => {
+      const longitude = Number(new URL(String(url)).searchParams.get("lon"));
+      const city = longitude < -8.614 ? "Gaia" : "Porto";
+      return {
+        ok: true,
+        json: async () => ({
+          features: [
+            {
+              properties: {
+                geocoding: { city },
+              },
+            },
+          ],
+        }),
+      } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const root = path.join(process.cwd(), ".tmp-tests", task.id);
+    const input = path.join(root, "input");
+    const output = path.join(root, "trips");
+    const dayDirectory = path.join(output, "rome", "days", "2026-05-14");
+    await mkdir(input, { recursive: true });
+    await mkdir(dayDirectory, { recursive: true });
+    await writeFile(path.join(input, "a.jpg"), "first");
+    await writeFile(path.join(input, "b.jpg"), "second");
+    await writeFile(path.join(input, "c.jpg"), "third");
+    await writeFile(
+      path.join(dayDirectory, "meta.yaml"),
+      "locations: [Existing]\nhighlights: [Dinner]\nnotes: keep\n",
+    );
+
+    const result = await planPhotoSort({
+      input,
+      trip: "rome",
+      contentRoot: output,
+      dryRun: true,
+      geocodeCachePath: path.join(root, "cache.json"),
+      geocodeDelayMs: 0,
+    });
+
+    expect(result.metadataOperations).toHaveLength(1);
+    expect(result.metadataOperations[0].locations).toEqual(["Existing", "Porto", "Gaia"]);
+    expect(result.metadataOperations[0].content).toContain("highlights");
+    expect(result.metadataOperations[0].content).toContain("notes: keep");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("caps merged locations at three with existing locations first", async ({ task }) => {
+    vi.mocked(exifr.parse).mockResolvedValue({
+      DateTimeOriginal: new Date(2026, 4, 14, 12, 30),
+    });
+    vi.mocked(exifr.gps)
+      .mockResolvedValueOnce({ latitude: 1, longitude: 1 })
+      .mockResolvedValueOnce({ latitude: 2, longitude: 2 });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          features: [{ properties: { geocoding: { city: "Detected One" } } }],
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          features: [{ properties: { geocoding: { city: "Detected Two" } } }],
+        }),
+      } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const root = path.join(process.cwd(), ".tmp-tests", task.id);
+    const input = path.join(root, "input");
+    const output = path.join(root, "trips");
+    const dayDirectory = path.join(output, "rome", "days", "2026-05-14");
+    await mkdir(input, { recursive: true });
+    await mkdir(dayDirectory, { recursive: true });
+    await writeFile(path.join(input, "a.jpg"), "first");
+    await writeFile(path.join(input, "b.jpg"), "second");
+    await writeFile(path.join(dayDirectory, "meta.yaml"), "locations: [Existing A, Existing B]\nhighlights: []\n");
+
+    const result = await planPhotoSort({
+      input,
+      trip: "rome",
+      contentRoot: output,
+      dryRun: true,
+      geocodeCachePath: path.join(root, "cache.json"),
+      geocodeDelayMs: 0,
+    });
+
+    expect(result.metadataOperations[0].locations).toEqual([
+      "Existing A",
+      "Existing B",
+      "Detected One",
+    ]);
+  });
+
+  it("writes metadata updates and the geocode cache outside dry-run mode", async ({ task }) => {
+    vi.mocked(exifr.parse).mockResolvedValue({
+      DateTimeOriginal: new Date(2026, 4, 14, 12, 30),
+    });
+    vi.mocked(exifr.gps).mockResolvedValue({ latitude: 41.1496, longitude: -8.6109 });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          features: [{ properties: { geocoding: { city: "Porto" } } }],
+        }),
+      })) as unknown as typeof fetch,
+    );
+
+    const root = path.join(process.cwd(), ".tmp-tests", task.id);
+    const input = path.join(root, "input");
+    const output = path.join(root, "trips");
+    const dayDirectory = path.join(output, "rome", "days", "2026-05-14");
+    const cachePath = path.join(root, "cache.json");
+    await mkdir(input, { recursive: true });
+    await mkdir(dayDirectory, { recursive: true });
+    await writeFile(path.join(input, "a.jpg"), "source");
+    await writeFile(path.join(dayDirectory, "meta.yaml"), "locations: [Existing]\nhighlights: [Dinner]\n");
+
+    await sortPhotos({
+      input,
+      trip: "rome",
+      contentRoot: output,
+      geocodeCachePath: cachePath,
+      geocodeDelayMs: 0,
+    });
+
+    const meta = await readFile(path.join(dayDirectory, "meta.yaml"), "utf8");
+    expect(meta).toContain("Existing");
+    expect(meta).toContain("Porto");
+    expect(meta).toContain("Dinner");
+    expect(await readFile(cachePath, "utf8")).toContain("Porto");
+  });
+
+  it("does not write metadata or cache files during dry-run", async ({ task }) => {
+    vi.mocked(exifr.parse).mockResolvedValue({
+      DateTimeOriginal: new Date(2026, 4, 14, 12, 30),
+    });
+    vi.mocked(exifr.gps).mockResolvedValue({ latitude: 41.1496, longitude: -8.6109 });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          features: [{ properties: { geocoding: { city: "Porto" } } }],
+        }),
+      })) as unknown as typeof fetch,
+    );
+
+    const root = path.join(process.cwd(), ".tmp-tests", task.id);
+    const input = path.join(root, "input");
+    const output = path.join(root, "trips");
+    const dayDirectory = path.join(output, "rome", "days", "2026-05-14");
+    const cachePath = path.join(root, "cache.json");
+    await mkdir(input, { recursive: true });
+    await mkdir(dayDirectory, { recursive: true });
+    await writeFile(path.join(input, "a.jpg"), "source");
+    await writeFile(path.join(dayDirectory, "meta.yaml"), "locations: []\nhighlights: []\n");
+
+    await sortPhotos({
+      input,
+      trip: "rome",
+      contentRoot: output,
+      dryRun: true,
+      geocodeCachePath: cachePath,
+      geocodeDelayMs: 0,
+    });
+
+    expect(await readFile(path.join(dayDirectory, "meta.yaml"), "utf8")).toBe("locations: []\nhighlights: []\n");
+    await expect(stat(cachePath)).rejects.toThrow();
+  });
+
+  it("uses persistent geocode cache entries without fetching again", async ({ task }) => {
+    vi.mocked(exifr.parse).mockResolvedValue({
+      DateTimeOriginal: new Date(2026, 4, 14, 12, 30),
+    });
+    vi.mocked(exifr.gps).mockResolvedValue({ latitude: 41.1496, longitude: -8.6109 });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const root = path.join(process.cwd(), ".tmp-tests", task.id);
+    const input = path.join(root, "input");
+    const output = path.join(root, "trips");
+    const cachePath = path.join(root, "cache.json");
+    await mkdir(input, { recursive: true });
+    await writeFile(path.join(input, "a.jpg"), "source");
+    await writeFile(cachePath, JSON.stringify({ "41.150,-8.611": "Porto" }));
+
+    const result = await planPhotoSort({
+      input,
+      trip: "rome",
+      contentRoot: output,
+      dryRun: true,
+      geocodeCachePath: cachePath,
+      geocodeDelayMs: 0,
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result.metadataOperations[0].locations).toEqual(["Porto"]);
   });
 });

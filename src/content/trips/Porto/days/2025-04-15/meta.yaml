@@ -1,2 +1,4 @@
-locations: [Porto, Gaia]
-highlights: [Exploring the city, Eating Pastel de Nata]
+locations:
+  - Porto
+  - Vila Nova de Gaia
+highlights: [ Exploring the city, Eating Pastel de Nata ]
