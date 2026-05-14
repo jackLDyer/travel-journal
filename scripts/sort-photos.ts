@@ -8,6 +8,7 @@ type CliOptions = {
   move?: boolean;
   dryRun?: boolean;
   optimize?: boolean;
+  originals?: boolean;
   maxDimension?: number;
   quality?: number;
   help?: boolean;
@@ -33,6 +34,8 @@ function readOptions(argv: string[]): CliOptions {
       options.move = true;
     } else if (arg === "--optimize") {
       options.optimize = true;
+    } else if (arg === "--originals") {
+      options.originals = true;
     } else if (arg === "--max-dimension") {
       options.maxDimension = Number(next);
       index += 1;
@@ -55,17 +58,18 @@ function printHelp() {
   console.log(`Sort travel photos into day folders.
 
 Usage:
-  npm run sort-photos -- --input <folder> --trip <trip-slug> [--dry-run] [--move] [--optimize]
+  npm run sort-photos -- --input <folder> --trip <trip-slug> [--dry-run]
 
 Options:
   --input <folder>       Folder containing photos to sort
   --trip <trip-slug>     Trip folder under src/content/trips
   --content-root <path>  Override the trips content root
-  --optimize             Write optimized .webp files instead of copying originals
+  --optimize             Write optimized .webp files, default behavior
+  --originals            Copy original files instead of optimizing to .webp
   --max-dimension <px>   Longest optimized image edge, default 1600
   --quality <1-100>      WebP quality for optimized images, default 76
   --dry-run              Print planned operations without copying or moving
-  --move                 Move files instead of copying them
+  --move                 Move original files instead of copying them; requires --originals
 `);
 }
 
@@ -103,8 +107,14 @@ async function main() {
     throw new Error("--input and --trip are required");
   }
 
-  if (options.move && options.optimize) {
-    throw new Error("--move cannot be used with --optimize because optimization never deletes originals");
+  const optimize = options.originals ? false : true;
+
+  if (options.optimize && options.originals) {
+    throw new Error("--optimize and --originals cannot be used together");
+  }
+
+  if (options.move && optimize) {
+    throw new Error("--move requires --originals because optimized imports never delete originals");
   }
 
   if (
@@ -127,7 +137,7 @@ async function main() {
     contentRoot: options.contentRoot,
     move: options.move,
     dryRun: options.dryRun,
-    optimize: options.optimize,
+    optimize,
     maxDimension: options.maxDimension,
     quality: options.quality,
   });

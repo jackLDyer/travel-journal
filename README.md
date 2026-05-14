@@ -38,7 +38,7 @@ npm run dev
 npm run build
 npm run test
 npm run sort-photos -- --input ./photo-dump --trip lisbon --dry-run
-npm run sort-photos -- --input ./photo-dump --trip lisbon --optimize
+npm run sort-photos -- --input ./photo-dump --trip lisbon
 ```
 
-The sorter copies by default. Use `--optimize` for the normal GitHub Pages workflow: it writes 1600px WebP files at quality 76, rotates from EXIF, strips metadata, and keeps originals in the input folder. Keep full-resolution originals outside this repo. Use `--move` only when you intentionally want to move originals out of the input folder. Files without reliable EXIF taken-date metadata are placed in `src/content/trips/<trip>/days/unsorted/`.
+The sorter optimizes by default for the normal GitHub Pages workflow: it writes 1600px WebP files at quality 76, rotates from EXIF, strips metadata, and keeps originals in the input folder. Keep full-resolution originals outside this repo. Use `--originals` only when you intentionally want to copy original files, and use `--move --originals` only when you intentionally want to move originals out of the input folder. Files without reliable EXIF taken-date metadata are placed in `src/content/trips/<trip>/days/unsorted/`.
