@@ -146,6 +146,27 @@ h3 {
   font-size: clamp(0.95rem, 1.25vw, 1rem);
 }
 
+.hero-meta {
+  display: grid;
+  gap: 8px;
+  max-width: 680px;
+  margin-top: 16px;
+}
+
+.hero-meta .lede {
+  margin: 0;
+}
+
+.meta-label {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--terracotta);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
 .section {
   margin: clamp(36px, 7vw, 78px) 0;
 }
