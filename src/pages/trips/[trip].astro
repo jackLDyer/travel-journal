@@ -1,0 +1,51 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { formatDisplayDate, getTrips } from "@/lib/trips";
+
+export function getStaticPaths() {
+  return getTrips().map((trip) => ({
+    params: { trip: trip.slug },
+    props: { trip },
+  }));
+}
+
+const { trip } = Astro.props;
+const Intro = trip.intro?.Content;
+---
+
+<BaseLayout title={`${trip.title} | Travel Journal`} description={trip.description}>
+  <section class="hero">
+    <p class="eyebrow">Trip journal</p>
+    <h1>{trip.title}</h1>
+    {trip.description && <p class="lede">{trip.description}</p>}
+  </section>
+
+  {Intro && (
+    <section class="section prose">
+      <Intro />
+    </section>
+  )}
+
+  <section class="section" aria-labelledby="days-heading">
+    <h2 id="days-heading">Days</h2>
+    {trip.days.length === 0 ? (
+      <div class="empty-state">
+        <h3>No days yet</h3>
+        <p>Add dated folders under <code>src/content/trips/{trip.slug}/days/</code>.</p>
+      </div>
+    ) : (
+      <div class="timeline">
+        {trip.days.map((day) => (
+          <a class="day-link" href={`/trips/${trip.slug}/${day.date}/`}>
+            <span class="date-pill">{formatDisplayDate(day.date)}</span>
+            <span>
+              <strong>{day.title}</strong>
+              {day.location && <span class="meta"> · {day.location}</span>}
+            </span>
+            <span class="meta">{day.photos.length} photo{day.photos.length === 1 ? "" : "s"}</span>
+          </a>
+        ))}
+      </div>
+    )}
+  </section>
+</BaseLayout>

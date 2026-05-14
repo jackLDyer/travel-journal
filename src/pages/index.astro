@@ -1,0 +1,45 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { getTrips } from "@/lib/trips";
+
+const trips = getTrips();
+---
+
+<BaseLayout title="Travel Journal">
+  <section class="hero">
+    <p class="eyebrow">Personal atlas</p>
+    <h1>Trips, days, stories, photographs.</h1>
+    <p class="lede">
+      A quiet static archive for travel journals. Add folders for each trip, write the day,
+      drop in photos, and the site builds itself around the journey.
+    </p>
+  </section>
+
+  <section class="section" aria-labelledby="trips-heading">
+    <h2 id="trips-heading">Trips</h2>
+    {trips.length === 0 ? (
+      <div class="empty-state">
+        <h3>No trips yet</h3>
+        <p>
+          Create <code>src/content/trips/my-trip/days/2026-05-14/summary.md</code>
+          and add photos under the matching <code>photos/</code> folder.
+        </p>
+      </div>
+    ) : (
+      <div class="grid">
+        {trips.map((trip) => (
+          <a class="card" href={`/trips/${trip.slug}/`}>
+            <div class="card-media">
+              {trip.cover && <img src={trip.cover.src} alt={trip.cover.alt} loading="lazy" />}
+            </div>
+            <div class="card-body">
+              <p class="eyebrow">{trip.days.length} day{trip.days.length === 1 ? "" : "s"}</p>
+              <h3>{trip.title}</h3>
+              {trip.description && <p class="meta">{trip.description}</p>}
+            </div>
+          </a>
+        ))}
+      </div>
+    )}
+  </section>
+</BaseLayout>

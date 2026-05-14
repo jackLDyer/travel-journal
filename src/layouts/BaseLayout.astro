@@ -1,0 +1,37 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = "Travel Journal",
+  description = "Static travel journals grouped by trip, day, story, and photos.",
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={description} />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <header class="site-header shell">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Travel Journal</span>
+      </a>
+    </header>
+    <main class="shell">
+      <slot />
+    </main>
+    <footer class="footer shell">
+      <span>Built from local markdown and photo folders.</span>
+    </footer>
+  </body>
+</html>

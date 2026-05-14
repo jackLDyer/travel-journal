@@ -1,0 +1,83 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { formatDisplayDate, getTrips } from "@/lib/trips";
+
+export function getStaticPaths() {
+  return getTrips().flatMap((trip) =>
+    trip.days.map((day) => ({
+      params: { trip: trip.slug, date: day.date },
+      props: { trip, day },
+    })),
+  );
+}
+
+const { trip, day } = Astro.props;
+const Summary = day.summary?.Content;
+---
+
+<BaseLayout title={`${day.title} | ${trip.title}`} description={`${trip.title}, ${day.date}`}>
+  <section class="hero">
+    <p class="eyebrow">{trip.title}</p>
+    <h1>{day.title}</h1>
+    <p class="lede">
+      {formatDisplayDate(day.date)}
+      {day.location && <> · {day.location}</>}
+    </p>
+  </section>
+
+  <section class="section prose">
+    {Summary ? <Summary /> : (
+      <div class="empty-state">
+        <h3>No summary yet</h3>
+        <p>Add the day’s story in <code>summary.md</code>.</p>
+      </div>
+    )}
+  </section>
+
+  <section class="section" aria-labelledby="photos-heading">
+    <h2 id="photos-heading">Photos</h2>
+    {day.photos.length === 0 ? (
+      <div class="empty-state">
+        <h3>No photos yet</h3>
+        <p>Add images under this day’s <code>photos/</code> folder.</p>
+      </div>
+    ) : (
+      <div class="photo-grid">
+        {day.photos.map((photo) => (
+          <button class="photo-button" type="button" data-lightbox-src={photo.src}>
+            <img src={photo.src} alt={photo.alt} loading="lazy" />
+          </button>
+        ))}
+      </div>
+    )}
+  </section>
+
+  <dialog class="lightbox" aria-label="Photo viewer">
+    <button class="lightbox-close" type="button" aria-label="Close photo viewer">×</button>
+    <img alt="" />
+  </dialog>
+
+  <script>
+    const dialog = document.querySelector<HTMLDialogElement>(".lightbox");
+    const image = dialog?.querySelector("img");
+    const closeButton = dialog?.querySelector<HTMLButtonElement>(".lightbox-close");
+
+    document.querySelectorAll<HTMLButtonElement>("[data-lightbox-src]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const src = button.dataset.lightboxSrc;
+        const thumbnail = button.querySelector("img");
+        if (!dialog || !image || !src) return;
+        image.src = src;
+        image.alt = thumbnail?.alt ?? "";
+        dialog.showModal();
+      });
+    });
+
+    closeButton?.addEventListener("click", () => dialog?.close());
+    dialog?.addEventListener("click", (event) => {
+      if (event.target === dialog) {
+        dialog.close();
+      }
+    });
+  </script>
+</BaseLayout>
